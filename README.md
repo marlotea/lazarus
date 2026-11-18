@@ -44,6 +44,26 @@ make worker   # CEBRA worker loop (polls Postgres for queued runs)
 make web      # Next.js on http://localhost:3000
 ```
 
+### The worker
+
+`make worker` (`python -m app.worker`) polls Postgres every 3 s and trains one run at a time.
+For each item it preprocesses the session's split (group A and B) into
+`DATA_DIR/preprocess/<hash>/{A,B}.npz` (reused when the item, split and preprocessing params
+match), then trains one CEBRA model per group into
+`DATA_DIR/runs/<run_id>/<eid>_<region>_<group>/` (`embedding.npy`, `model.pt`, `labels.npz`)
+and logs to `DATA_DIR/runs/<run_id>/run.log`. A failed run keeps the end of its traceback in
+`runs.error` (click the Failed badge). Ctrl-C or SIGTERM fails the current run with
+"worker stopped"; a worker that died mid-run (e.g. `kill -9`) fails that run with
+"worker restarted mid-run" when it starts again. With `IBL_FAKE=1` the data is a synthetic
+recording whose neurons follow wheel velocity, stimulus contrast and movement.
+
+The pipeline is importable without FastAPI, e.g. from a notebook:
+
+```python
+from app.pipeline.preprocess import preprocess_item, load_group
+from app.pipeline.cebra_train import train_group
+```
+
 ## Other commands
 
 | Command | Does |
@@ -71,3 +91,8 @@ make web      # Next.js on http://localhost:3000
 
 - Trials are concatenated before CEBRA training, so CEBRA's time offsets can pair bins across a
   trial boundary.
+- Hybrid mode cannot use a discrete label: CEBRA 0.6.1's sklearn API does not implement that
+  combination, so the API rejects it.
+- A group needs at least `batch_size` rows (time bins); otherwise that run fails with a message.
+- Backend tests that exercise the worker skip themselves while the database has queued or
+  running runs, and must not run next to `make worker` (it would claim their runs).

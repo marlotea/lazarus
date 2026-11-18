@@ -146,6 +146,19 @@ class HybridParams(LabelledParams):
 
     hybrid: ClassVar[bool] = True
 
+    @model_validator(mode="after")
+    def _no_discrete_label(self) -> HybridParams:
+        # cebra 0.6.1's sklearn API raises NotImplementedError for hybrid training with any
+        # discrete label ("Invalid index combination"), so reject it here instead of failing
+        # the run after preprocessing.
+        if self.discrete_label is not None:
+            raise PydanticCustomError(
+                "hybrid_discrete_unsupported",
+                "Hybrid mode cannot use a discrete label (CEBRA does not support it)",
+                {"field": "discrete_label"},
+            )
+        return self
+
 
 PARAMS_BY_MODE: dict[str, type[CebraParams]] = {
     "time": TimeParams,

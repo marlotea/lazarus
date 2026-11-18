@@ -44,8 +44,19 @@ def test_labelled_modes_reject_no_labels(model):
     (err,) = info.value.errors()
     assert err["type"] == "labels_required"
     assert err["ctx"] == {"field": "continuous_labels"}
-    # One discrete label alone is enough.
-    assert model(continuous_labels=[], discrete_label="choice").discrete_label == "choice"
+    if model is BehaviourParams:
+        # One discrete label alone is enough.
+        assert model(continuous_labels=[], discrete_label="choice").discrete_label == "choice"
+
+
+def test_hybrid_rejects_discrete_label():
+    # cebra 0.6.1 cannot train hybrid with a discrete label.
+    for continuous in ([], ["wheel_velocity"]):
+        with pytest.raises(ValidationError) as info:
+            HybridParams(continuous_labels=continuous, discrete_label="choice")
+        (err,) = info.value.errors()
+        assert err["type"] == "hybrid_discrete_unsupported"
+        assert err["ctx"] == {"field": "discrete_label"}
 
 
 def test_hidden_mode_fields():
