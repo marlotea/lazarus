@@ -79,3 +79,17 @@ def get_fake_session(eid: uuid.UUID | str) -> FakeSession:
         if s.eid == key:
             return s
     raise KeyError(f"No fake session with eid {key}")
+
+
+def fake_valid_trials(eid: uuid.UUID | str) -> list[int]:
+    """Valid trial indices of a fake session: 0..n_trials-1 minus a fixed ~4% of trials,
+    standing in for trials with a NaN stimOn/firstMovement/feedback time. Same eid, same list."""
+    s = get_fake_session(eid)
+    # A tiny LCG keyed on the eid keeps this deterministic without numpy.
+    state = s.eid.int % 2**31
+    valid = []
+    for i in range(s.n_trials):
+        state = (1103515245 * state + 12345) % 2**31
+        if state % 25 != 0:
+            valid.append(i)
+    return valid

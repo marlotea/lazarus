@@ -46,6 +46,54 @@ export interface paths {
         patch: operations["update_experiment_api_experiments__experiment_id__patch"];
         trace?: never;
     };
+    "/api/experiments/{experiment_id}/items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Items
+         * @description Selected items joined with catalog info and the current split of their session,
+         *     ordered by subject, session date, session and region.
+         */
+        get: operations["list_items_api_experiments__experiment_id__items_get"];
+        /**
+         * Replace Items
+         * @description Replace the whole selection. Every session in the new selection that has no current
+         *     split gets one (its trials table is loaded to find the valid trials). A session that is
+         *     removed and added back keeps its earlier split.
+         */
+        put: operations["replace_items_api_experiments__experiment_id__items_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/experiments/{experiment_id}/splits/{eid}/reshuffle": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reshuffle Split
+         * @description Make a new split with a new seed for one session. The old split row stays, with
+         *     `superseded_at` set, so runs that used it keep pointing at it.
+         */
+        post: operations["reshuffle_split_api_experiments__experiment_id__splits__eid__reshuffle_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/catalog/items": {
         parameters: {
             query?: never;
@@ -180,6 +228,31 @@ export interface components {
             description: string;
         };
         /**
+         * ExperimentItem
+         * @description One selected item (session x region) with catalog info and its session's split.
+         */
+        ExperimentItem: {
+            /**
+             * Eid
+             * Format: uuid
+             */
+            eid: string;
+            /** Region */
+            region: string;
+            /** Subject */
+            subject: string;
+            /** Lab */
+            lab: string;
+            /**
+             * Session Date
+             * Format: date
+             */
+            session_date: string;
+            /** N Good Units */
+            n_good_units: number;
+            split: components["schemas"]["Split"] | null;
+        };
+        /**
          * ExperimentUpdate
          * @description Only the fields sent are changed.
          */
@@ -202,6 +275,41 @@ export interface components {
             db: boolean;
             /** Worker Last Seen */
             worker_last_seen: string | null;
+        };
+        /** ItemRef */
+        ItemRef: {
+            /**
+             * Eid
+             * Format: uuid
+             */
+            eid: string;
+            /** Region */
+            region: string;
+        };
+        /**
+         * ItemsReplace
+         * @description The whole new selection. Duplicates are ignored.
+         */
+        ItemsReplace: {
+            /** Items */
+            items: components["schemas"]["ItemRef"][];
+        };
+        /**
+         * Split
+         * @description The current split of one session's valid trials into groups A and B.
+         */
+        Split: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Seed */
+            seed: number;
+            /** N A */
+            n_a: number;
+            /** N B */
+            n_b: number;
         };
         /** ValidationError */
         ValidationError: {
@@ -331,6 +439,104 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Experiment"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_items_api_experiments__experiment_id__items_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                experiment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExperimentItem"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    replace_items_api_experiments__experiment_id__items_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                experiment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ItemsReplace"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExperimentItem"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reshuffle_split_api_experiments__experiment_id__splits__eid__reshuffle_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                experiment_id: string;
+                eid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Split"];
                 };
             };
             /** @description Validation Error */

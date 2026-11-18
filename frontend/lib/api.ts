@@ -40,6 +40,9 @@ export type CatalogRegion = Schemas["CatalogRegion"];
 export type Experiment = Schemas["Experiment"];
 export type ExperimentCreate = Schemas["ExperimentCreate"];
 export type ExperimentUpdate = Schemas["ExperimentUpdate"];
+export type ExperimentItem = Schemas["ExperimentItem"];
+export type ItemRef = Schemas["ItemRef"];
+export type Split = Schemas["Split"];
 
 export type CatalogQuery = {
   region?: string[];
@@ -76,6 +79,18 @@ export const api = {
         method: "PATCH",
         body: JSON.stringify(body),
       }),
+    items: (id: string) =>
+      apiFetch<ExperimentItem[]>(`/api/experiments/${encodeURIComponent(id)}/items`),
+    replaceItems: (id: string, items: ItemRef[]) =>
+      apiFetch<ExperimentItem[]>(`/api/experiments/${encodeURIComponent(id)}/items`, {
+        method: "PUT",
+        body: JSON.stringify({ items }),
+      }),
+    reshuffle: (id: string, eid: string) =>
+      apiFetch<Split>(
+        `/api/experiments/${encodeURIComponent(id)}/splits/${encodeURIComponent(eid)}/reshuffle`,
+        { method: "POST" },
+      ),
   },
 };
 
@@ -83,4 +98,8 @@ export const api = {
 export const queryKeys = {
   experiments: ["experiments"] as const,
   experiment: (id: string) => ["experiments", id] as const,
+  /** Under `experiment(id)`, so invalidating the experiment also refetches its items. */
+  items: (id: string) => ["experiments", id, "items"] as const,
+  catalogItems: (q: CatalogQuery) => ["catalog", "items", q] as const,
+  catalogRegions: ["catalog", "regions"] as const,
 };

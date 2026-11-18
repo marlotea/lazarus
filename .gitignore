@@ -20,6 +20,7 @@ next-env.d.ts
 
 # Data
 data/
+!frontend/components/data/
 results/
 
 # OS / tools

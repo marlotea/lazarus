@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { DataSection } from "@/components/data/data-section";
 import { ExperimentDialog } from "@/components/experiments/experiment-dialog";
 import { SectionHeading } from "@/components/section-heading";
 import { ApiError, api, queryKeys } from "@/lib/api";
@@ -93,15 +94,7 @@ export function ExperimentView({ id }: { id: string }) {
         </p>
       </header>
 
-      <section aria-labelledby="data-heading" className="mb-8">
-        <SectionHeading n={1} id="data-heading">
-          Data
-        </SectionHeading>
-        <div className={`${CARD} px-5 py-8 text-center text-zinc-500`}>
-          {/* Filled in M4: grouped items, splits and the selection editor. */}
-          No data selected yet
-        </div>
-      </section>
+      <DataSection experimentId={exp.id} />
 
       <section aria-labelledby="cebra-heading">
         <SectionHeading n={2} id="cebra-heading">
