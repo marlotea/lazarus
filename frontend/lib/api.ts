@@ -43,6 +43,10 @@ export type ExperimentUpdate = Schemas["ExperimentUpdate"];
 export type ExperimentItem = Schemas["ExperimentItem"];
 export type ItemRef = Schemas["ItemRef"];
 export type Split = Schemas["Split"];
+export type Run = Schemas["Run"];
+export type RunCreate = Schemas["RunCreate"];
+export type RunStatus = Run["status"];
+export type CebraSchema = Schemas["CebraSchema"];
 
 export type CatalogQuery = {
   region?: string[];
@@ -69,6 +73,7 @@ export const api = {
   catalogItems: (q: CatalogQuery = {}) =>
     apiFetch<CatalogItem[]>(`/api/catalog/items${toQuery(q)}`),
   catalogRegions: () => apiFetch<CatalogRegion[]>("/api/catalog/regions"),
+  cebraSchema: () => apiFetch<CebraSchema>("/api/cebra/schema"),
   experiments: {
     list: () => apiFetch<Experiment[]>("/api/experiments"),
     get: (id: string) => apiFetch<Experiment>(`/api/experiments/${encodeURIComponent(id)}`),
@@ -91,6 +96,12 @@ export const api = {
         `/api/experiments/${encodeURIComponent(id)}/splits/${encodeURIComponent(eid)}/reshuffle`,
         { method: "POST" },
       ),
+    runs: (id: string) => apiFetch<Run[]>(`/api/experiments/${encodeURIComponent(id)}/runs`),
+    createRun: (id: string, body: RunCreate) =>
+      apiFetch<Run>(`/api/experiments/${encodeURIComponent(id)}/runs`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
   },
 };
 
@@ -102,4 +113,7 @@ export const queryKeys = {
   items: (id: string) => ["experiments", id, "items"] as const,
   catalogItems: (q: CatalogQuery) => ["catalog", "items", q] as const,
   catalogRegions: ["catalog", "regions"] as const,
+  /** Under `experiment(id)`, like items. */
+  runs: (id: string) => ["experiments", id, "runs"] as const,
+  cebraSchema: ["cebra", "schema"] as const,
 };

@@ -134,6 +134,56 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/cebra/schema": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Cebra Schema
+         * @description JSON Schema of each mode's CEBRA params and of the preprocessing params, built from
+         *     the Pydantic models. The mode's hidden CEBRA arguments are not part of it.
+         */
+        get: operations["cebra_schema_api_cebra_schema_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/experiments/{experiment_id}/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Runs
+         * @description The experiment's runs, newest first.
+         */
+        get: operations["list_runs_api_experiments__experiment_id__runs_get"];
+        put?: never;
+        /**
+         * Create Run
+         * @description Queue a CEBRA run on the experiment's current items.
+         *
+         *     Validates `params` against the mode's model and `preprocess` (422), rejects a name
+         *     already used in the experiment (409) and an empty selection (422), snapshots each item
+         *     with its session's current split into `inputs`, and inserts the run as `queued` with
+         *     `progress.total = items x 2`.
+         */
+        post: operations["create_run_api_experiments__experiment_id__runs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/health": {
         parameters: {
             query?: never;
@@ -188,6 +238,33 @@ export interface components {
             region: string;
             /** N Sessions */
             n_sessions: number;
+        };
+        /** CebraModeSchemas */
+        CebraModeSchemas: {
+            /** Time */
+            time: {
+                [key: string]: unknown;
+            };
+            /** Behaviour */
+            behaviour: {
+                [key: string]: unknown;
+            };
+            /** Hybrid */
+            hybrid: {
+                [key: string]: unknown;
+            };
+        };
+        /**
+         * CebraSchema
+         * @description JSON Schema of each mode's params and of the preprocessing params. Property order is
+         *     the order the form and the runs table use.
+         */
+        CebraSchema: {
+            modes: components["schemas"]["CebraModeSchemas"];
+            /** Preprocess */
+            preprocess: {
+                [key: string]: unknown;
+            };
         };
         /** Experiment */
         Experiment: {
@@ -293,6 +370,108 @@ export interface components {
         ItemsReplace: {
             /** Items */
             items: components["schemas"]["ItemRef"][];
+        };
+        /** Run */
+        Run: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Experiment Id
+             * Format: uuid
+             */
+            experiment_id: string;
+            /**
+             * Stage
+             * @constant
+             */
+            stage: "cebra";
+            /** Name */
+            name: string;
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "time" | "behaviour" | "hybrid";
+            /** Params */
+            params: {
+                [key: string]: unknown;
+            };
+            /** Preprocess */
+            preprocess: {
+                [key: string]: unknown;
+            };
+            /** Inputs */
+            inputs: components["schemas"]["RunInput"][];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "queued" | "running" | "succeeded" | "failed";
+            progress: components["schemas"]["RunProgress"];
+            /** Error */
+            error: string | null;
+            /** Output Dir */
+            output_dir: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Started At */
+            started_at: string | null;
+            /** Finished At */
+            finished_at: string | null;
+        };
+        /**
+         * RunCreate
+         * @description Queue a run. `params` and `preprocess` are validated against the mode's model from
+         *     `GET /api/cebra/schema`; omitted fields take their defaults. Validation errors use
+         *     `loc = ["body", "params" | "preprocess", <field>]`, so each maps onto one form field.
+         */
+        RunCreate: {
+            /** Name */
+            name: string;
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "time" | "behaviour" | "hybrid";
+            /** Params */
+            params?: {
+                [key: string]: unknown;
+            };
+            /** Preprocess */
+            preprocess?: {
+                [key: string]: unknown;
+            };
+        };
+        /**
+         * RunInput
+         * @description One item of the run's input snapshot, with the split its session had at queue time.
+         */
+        RunInput: {
+            /**
+             * Eid
+             * Format: uuid
+             */
+            eid: string;
+            /** Region */
+            region: string;
+            /**
+             * Split Id
+             * Format: uuid
+             */
+            split_id: string;
+        };
+        /** RunProgress */
+        RunProgress: {
+            /** Done */
+            done: number;
+            /** Total */
+            total: number;
         };
         /**
          * Split
@@ -606,6 +785,99 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CatalogRegion"][];
+                };
+            };
+        };
+    };
+    cebra_schema_api_cebra_schema_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CebraSchema"];
+                };
+            };
+        };
+    };
+    list_runs_api_experiments__experiment_id__runs_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                experiment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Run"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_run_api_experiments__experiment_id__runs_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                experiment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RunCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Run"];
+                };
+            };
+            /** @description Name already used in this experiment */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

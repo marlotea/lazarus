@@ -5,9 +5,9 @@ import { useQuery } from "@tanstack/react-query";
 import { Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { CebraSection } from "@/components/cebra/CebraSection";
 import { DataSection } from "@/components/data/data-section";
 import { ExperimentDialog } from "@/components/experiments/experiment-dialog";
-import { SectionHeading } from "@/components/section-heading";
 import { ApiError, api, queryKeys } from "@/lib/api";
 import { experimentMeta } from "@/lib/format";
 
@@ -96,15 +96,7 @@ export function ExperimentView({ id }: { id: string }) {
 
       <DataSection experimentId={exp.id} />
 
-      <section aria-labelledby="cebra-heading">
-        <SectionHeading n={2} id="cebra-heading">
-          CEBRA training
-        </SectionHeading>
-        <div className={`${CARD} px-5 py-8 text-center text-zinc-500`}>
-          {/* Filled in M5: runs table and the New run button. */}
-          No runs yet.
-        </div>
-      </section>
+      <CebraSection experiment={exp} />
     </div>
   );
 }

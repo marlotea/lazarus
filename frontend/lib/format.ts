@@ -5,6 +5,11 @@ export function formatDate(iso: string): string {
   return format(parseISO(iso), "MMM d, yyyy");
 }
 
+/** `2026-11-04T18:20:00+00:00` -> `Nov 4, 2026 10:20` (local time). */
+export function formatDateTime(iso: string): string {
+  return format(parseISO(iso), "MMM d, yyyy HH:mm");
+}
+
 /** `plural(1, "item")` -> `1 item`; `plural(3, "item")` -> `3 items`. */
 export function plural(n: number, word: string): string {
   return `${n} ${word}${n === 1 ? "" : "s"}`;
