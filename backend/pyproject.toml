@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Research Tracker v0 backend: FastAPI API and CEBRA worker"
 requires-python = ">=3.11"
 dependencies = [
+    "brainwidemap",
     "cebra>=0.6.1",
     "fastapi>=0.163.2",
     "ibllib>=4.1.1",
@@ -36,3 +37,6 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
+
+[tool.uv.sources]
+brainwidemap = { git = "https://github.com/int-brain-lab/paper-brain-wide-map", rev = "705b7cb" }

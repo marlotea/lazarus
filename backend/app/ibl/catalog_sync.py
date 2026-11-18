@@ -1,11 +1,12 @@
 """Fill the IBL catalog tables (`ibl_sessions`, `ibl_session_regions`).
 
-    uv run python -m app.ibl.catalog_sync [--regions CA1,DG] [--limit 50]
+    uv run python -m app.ibl.catalog_sync [--regions CA1,DG] [--limit 50] [--eids EID,EID]
 
 With IBL_FAKE=1 it writes the synthetic sessions from app.ibl.fake. Otherwise it reads the
 Brain Wide Map session/probe table and good-unit table from the public IBL server.
-Rows are upserted, so running it again is safe. `n_trials` is left null here; it is filled
-when a split is made for the session.
+Rows are upserted, so running it again is safe and only adds or updates rows: fake and real
+sessions can live side by side in the catalog (fake subjects are named FAKE01..FAKE06).
+`n_trials` is left null here; it is filled when a split is made for the session.
 """
 
 from __future__ import annotations
@@ -52,11 +53,17 @@ def filter_catalog(
     regions: Iterable[CatalogRegion],
     region_filter: Sequence[str] | None = None,
     limit: int | None = None,
+    eid_filter: Sequence[uuid.UUID] | None = None,
 ) -> Catalog:
-    """Keep only rows in `region_filter`, drop sessions left without regions, then keep the
-    first `limit` sessions (in the order given)."""
+    """Keep only rows in `region_filter` (and sessions in `eid_filter`), drop sessions left
+    without regions, then keep the first `limit` sessions (in the order given)."""
     wanted = set(region_filter) if region_filter else None
-    kept_regions = [r for r in regions if wanted is None or r.region in wanted]
+    wanted_eids = set(eid_filter) if eid_filter else None
+    kept_regions = [
+        r
+        for r in regions
+        if (wanted is None or r.region in wanted) and (wanted_eids is None or r.eid in wanted_eids)
+    ]
     eids_with_regions = {r.eid for r in kept_regions}
     kept_sessions = [s for s in sessions if s.eid in eids_with_regions]
     if limit is not None:
@@ -79,9 +86,12 @@ def fake_catalog() -> Catalog:
     return sessions, regions
 
 
-# Column names of the brainwidemap tables. Printed on every real run so they can be checked;
-# a missing column stops the sync with the actual column list. Verified against the
-# installed brainwidemap version in M7.
+# Column names of the brainwidemap tables (brainwidemap @ 705b7cb, freeze 2023_12_bwm_release),
+# checked against the real tables in M7. The full column lists are printed on every real run;
+# a missing column stops the sync with the actual column list.
+#   bwm_query: pid, eid, probe_name, session_number, date, subject, lab (one row per probe)
+#   bwm_units: Beryl, eid, pid, cluster_id, label, acronym, atlas_id, uuids, ... (one row per
+#              good unit; already filtered to label >= 1 and BWM region/session criteria)
 BWM_QUERY_COLS = {"eid": "eid", "pid": "pid", "subject": "subject", "lab": "lab", "date": "date"}
 BWM_UNITS_COLS = {"eid": "eid", "pid": "pid", "region": "Beryl"}
 
@@ -95,40 +105,31 @@ def _require_columns(df: pd.DataFrame, cols: dict[str, str], name: str) -> None:
         )
 
 
-def real_catalog() -> Catalog:
-    """Brain Wide Map sessions and good units from the public IBL server."""
+def catalog_from_tables(bwm_df: pd.DataFrame, unit_df: pd.DataFrame) -> Catalog:
+    """Map the `bwm_query` and `bwm_units` tables onto catalog rows (pure, no network).
+
+    Sessions are ordered by date, then eid. Regions are units grouped by (eid, Beryl region):
+    the unit count and the distinct pids. Units of sessions missing from `bwm_df` are dropped.
+    """
     import pandas as pd
-    from brainwidemap import bwm_query, bwm_units  # not on PyPI; added in M7
 
-    from app.ibl.one_client import get_one
-
-    one = get_one()
-    # 1. Every BWM session and probe.
-    bwm_df = bwm_query(one)
-    # 2. The good units used in the BWM paper, with eid, pid and Beryl region.
-    unit_df = bwm_units(one)
-    print(f"bwm_query columns: {list(bwm_df.columns)}")
-    print(f"bwm_units columns: {list(unit_df.columns)}")
     _require_columns(bwm_df, BWM_QUERY_COLS, "bwm_query")
     _require_columns(unit_df, BWM_UNITS_COLS, "bwm_units")
-
     q, u = BWM_QUERY_COLS, BWM_UNITS_COLS
-    sess_df = (
-        bwm_df[[q["eid"], q["subject"], q["lab"], q["date"]]]
-        .drop_duplicates(subset=q["eid"])
-        .sort_values([q["date"], q["eid"]])
+    sess_df = bwm_df[[q["eid"], q["subject"], q["lab"], q["date"]]].drop_duplicates(subset=q["eid"])
+    sessions = sorted(
+        (
+            CatalogSession(
+                eid=uuid.UUID(str(row[q["eid"]])),
+                subject=str(row[q["subject"]]),
+                lab=str(row[q["lab"]]),
+                session_date=pd.Timestamp(row[q["date"]]).date(),
+            )
+            for _, row in sess_df.iterrows()
+        ),
+        key=lambda s: (s.session_date, str(s.eid)),
     )
-    sessions = [
-        CatalogSession(
-            eid=uuid.UUID(str(row[q["eid"]])),
-            subject=str(row[q["subject"]]),
-            lab=str(row[q["lab"]]),
-            session_date=pd.Timestamp(row[q["date"]]).date(),
-        )
-        for _, row in sess_df.iterrows()
-    ]
 
-    # 3. Group units by (eid, Beryl region): count units, collect the distinct pids.
     grouped = unit_df.groupby([u["eid"], u["region"]], sort=True)
     regions = [
         CatalogRegion(
@@ -141,6 +142,27 @@ def real_catalog() -> Catalog:
     ]
     known = {s.eid for s in sessions}
     return sessions, [r for r in regions if r.eid in known]
+
+
+def real_catalog() -> Catalog:
+    """Brain Wide Map sessions and good units from the public IBL server.
+
+    `bwm_query` reads a frozen table shipped with brainwidemap; `bwm_units` downloads two
+    aggregate tables (about 115 MB) into `ONE_CACHE_DIR/bwm_tables` on first use.
+    """
+    from brainwidemap import bwm_query, bwm_units  # git dependency, pinned in pyproject
+
+    from app.ibl.one_client import get_one
+
+    one = get_one()
+    # 1. Every BWM session and probe.
+    bwm_df = bwm_query(one)
+    # 2. The good units used in the BWM paper, with eid, pid and Beryl region.
+    unit_df = bwm_units(one)
+    print(f"bwm_query columns: {list(bwm_df.columns)}")
+    print(f"bwm_units columns: {list(unit_df.columns)}")
+    # 3. Group units by (eid, Beryl region).
+    return catalog_from_tables(bwm_df, unit_df)
 
 
 # --- write -------------------------------------------------------------------------------
@@ -193,11 +215,12 @@ def sync_catalog(
     region_filter: Sequence[str] | None = None,
     limit: int | None = None,
     fake: bool | None = None,
+    eid_filter: Sequence[uuid.UUID] | None = None,
 ) -> Catalog:
     """Build the catalog (fake or real), filter it and upsert it. Commits."""
     use_fake = get_settings().ibl_fake if fake is None else fake
     sessions, regions = fake_catalog() if use_fake else real_catalog()
-    sessions, regions = filter_catalog(sessions, regions, region_filter, limit)
+    sessions, regions = filter_catalog(sessions, regions, region_filter, limit, eid_filter)
     upsert_catalog(db, sessions, regions)
     db.commit()
     return sessions, regions
@@ -207,12 +230,24 @@ def _parse_regions(value: str) -> list[str]:
     return [r.strip() for r in value.split(",") if r.strip()]
 
 
+def _parse_eids(value: str) -> list[uuid.UUID]:
+    try:
+        return [uuid.UUID(e.strip()) for e in value.split(",") if e.strip()]
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(f"not a list of session uuids: {value!r}") from exc
+
+
 def main(argv: Sequence[str] | None = None) -> None:
     parser = argparse.ArgumentParser(prog="python -m app.ibl.catalog_sync", description=__doc__)
     parser.add_argument(
         "--regions", type=_parse_regions, default=None, help="comma-separated Beryl acronyms"
     )
-    parser.add_argument("--limit", type=int, default=None, help="keep the first N sessions")
+    parser.add_argument(
+        "--limit", type=int, default=None, help="keep the first N sessions (by date, then eid)"
+    )
+    parser.add_argument(
+        "--eids", type=_parse_eids, default=None, help="comma-separated session eids to keep"
+    )
     args = parser.parse_args(argv)
     if args.limit is not None and args.limit < 1:
         parser.error("--limit must be at least 1")
@@ -221,7 +256,9 @@ def main(argv: Sequence[str] | None = None) -> None:
 
     fake = get_settings().ibl_fake
     with SessionLocal() as db:
-        sessions, regions = sync_catalog(db, args.regions, args.limit, fake=fake)
+        sessions, regions = sync_catalog(
+            db, args.regions, args.limit, fake=fake, eid_filter=args.eids
+        )
     source = "fake (IBL_FAKE=1)" if fake else "IBL Brain Wide Map"
     print(
         f"Synced {len(sessions)} sessions and {len(regions)} session x region rows from {source}."

@@ -86,7 +86,16 @@ def get_fake_session(eid: uuid.UUID | str) -> FakeSession:
     for s in FAKE_SESSIONS:
         if s.eid == key:
             return s
-    raise KeyError(f"No fake session with eid {key}")
+    raise KeyError(
+        f"No fake session with eid {key}. It looks like a real IBL session: "
+        "run with IBL_FAKE=0 to load it."
+    )
+
+
+def is_fake_eid(eid: uuid.UUID | str) -> bool:
+    """True for the eids of the fake catalog (they can coexist with real ones in the DB)."""
+    key = uuid.UUID(str(eid))
+    return any(s.eid == key for s in FAKE_SESSIONS)
 
 
 def fake_valid_trials(eid: uuid.UUID | str) -> list[int]:

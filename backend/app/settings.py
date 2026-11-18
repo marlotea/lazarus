@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://postgres:postgres@127.0.0.1:54322/postgres"
     data_dir: Path = Path("~/448-data")
     one_base_url: str = "https://openalyx.internationalbrainlab.org"
-    one_cache_dir: Path = Path("~/448-data/one-cache")
+    one_cache_dir: Path = Path("~/448-data/ONE")
     ibl_fake: bool = False
     cors_origins: Annotated[list[str], NoDecode] = ["http://localhost:3000"]
 

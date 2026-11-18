@@ -4,7 +4,7 @@ The return types are plain numpy containers, so `app.pipeline.preprocess` treats
 fake data the same way. Heavy IBL imports (brainbox, iblatlas) happen inside the real-data
 functions only, so importing this module stays cheap.
 
-Real path (M7 verifies it against the public server):
+Real path (checked against the public server in M7):
 
 1. For each pid: `SpikeSortingLoader(pid=pid, one=one, atlas=AllenAtlas())`,
    `load_spike_sorting()`, then `merge_clusters(...)`.
@@ -15,6 +15,7 @@ Real path (M7 verifies it against the public server):
 
 from __future__ import annotations
 
+import os
 import uuid
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
@@ -77,6 +78,16 @@ def select_units(
     return np.sort(ids[keep])
 
 
+def require_real_session(eid: uuid.UUID | str) -> None:
+    """Refuse to look up a fake-catalog session on the IBL server (IBL_FAKE=0)."""
+    from app.ibl.fake import is_fake_eid
+
+    if is_fake_eid(eid):
+        raise ValueError(
+            f"Session {eid} is a fake session (IBL_FAKE=1 data); run with IBL_FAKE=1 to use it."
+        )
+
+
 def load_item_units(eid: uuid.UUID | str, region: str, pids: Iterable[str]) -> list[ProbeUnits]:
     """Good units of `region` on each probe in `pids` (sorted), fake or real."""
     pids = sorted(str(p) for p in pids)
@@ -84,6 +95,7 @@ def load_item_units(eid: uuid.UUID | str, region: str, pids: Iterable[str]) -> l
         from app.ibl.fake import fake_probe_units
 
         return [fake_probe_units(eid, pid, region) for pid in pids]
+    require_real_session(eid)
     return [_real_probe_units(pid, region) for pid in pids]
 
 
@@ -93,6 +105,7 @@ def load_session_behaviour(eid: uuid.UUID | str) -> SessionBehaviour:
         from app.ibl.fake import fake_behaviour
 
         return fake_behaviour(eid)
+    require_real_session(eid)
     return _real_behaviour(eid)
 
 
@@ -101,9 +114,19 @@ def load_session_behaviour(eid: uuid.UUID | str) -> SessionBehaviour:
 
 @lru_cache
 def _atlas():  # -> iblatlas.atlas.AllenAtlas (heavy import, deferred)
+    """The 25 um Allen atlas. Its volumes (about 40 MB) are downloaded once into
+    `ONE_CACHE_DIR/histology/...`; without `hist_path` iblatlas would use ONE's default
+    cache directory (`~/Downloads/ONE/...`) instead of ours.
+
+    iblatlas downloads the volumes with `urllib`, which uses OpenSSL's default CA paths. The
+    python.org macOS build has none unless "Install Certificates.command" was run, so the
+    download fails with CERTIFICATE_VERIFY_FAILED; point OpenSSL at certifi's bundle (the one
+    ONE's `requests` uses) unless SSL_CERT_FILE is already set."""
+    import certifi
     from iblatlas.atlas import AllenAtlas
 
-    return AllenAtlas()
+    os.environ.setdefault("SSL_CERT_FILE", certifi.where())
+    return AllenAtlas(hist_path=get_settings().one_cache_dir / AllenAtlas.atlas_rel_path)
 
 
 def _real_probe_units(pid: str, region: str) -> ProbeUnits:

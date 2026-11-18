@@ -61,8 +61,10 @@ def load_session_trials(eid: uuid.UUID | str) -> SessionTrials:
         session = get_fake_session(eid)
         return SessionTrials(session.n_trials, np.asarray(fake_valid_trials(eid), dtype=np.int64))
 
+    from app.ibl.loaders import require_real_session
     from app.ibl.one_client import get_one
 
+    require_real_session(eid)
     trials = get_one().load_object(str(eid), "trials")
     n_trials = len(np.asarray(trials["stimOn_times"]))
     return SessionTrials(n_trials, valid_trial_ids(trials))
