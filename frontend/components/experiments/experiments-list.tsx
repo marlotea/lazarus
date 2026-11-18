@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ErrorState } from "@/components/error-state";
 import { ExperimentDialog } from "@/components/experiments/experiment-dialog";
 import { api, queryKeys } from "@/lib/api";
 import { formatDate, itemsAndRuns } from "@/lib/format";
@@ -25,7 +26,7 @@ function NewExperimentButton() {
 }
 
 export function ExperimentsList() {
-  const { data, isPending, isError } = useQuery({
+  const { data, isPending, isError, error, refetch, isFetching } = useQuery({
     queryKey: queryKeys.experiments,
     queryFn: api.experiments.list,
   });
@@ -57,8 +58,13 @@ export function ExperimentsList() {
           ))}
         </div>
       ) : isError ? (
-        <div className={`${CARD} px-5 py-10 text-center text-zinc-500`} role="alert">
-          Could not load experiments. Is the API running (<code className="font-mono text-xs">make api</code>)?
+        <div className={CARD}>
+          <ErrorState
+            title="Could not load experiments"
+            error={error}
+            onRetry={() => void refetch()}
+            retrying={isFetching}
+          />
         </div>
       ) : data.length === 0 ? (
         <div className={`${CARD} flex flex-col items-center gap-3 px-5 py-14 text-center`}>

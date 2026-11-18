@@ -4,7 +4,7 @@ import uuid
 
 from fastapi import HTTPException, Request
 from sqlalchemy import select
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import OperationalError, SQLAlchemyError
 
 from app.db import SessionLocal
 from app.models import Workspace
@@ -23,7 +23,9 @@ def get_workspace_id(request: Request) -> uuid.UUID:
     if getattr(state, "workspace_id", None) is None:
         try:
             state.workspace_id = load_workspace_id()
-        except SQLAlchemyError:
+        except OperationalError:
+            raise  # database unreachable: app.main turns this into a 503 saying so
+        except SQLAlchemyError:  # e.g. tables missing before the first `make db-reset`
             state.workspace_id = None
         if state.workspace_id is None:
             raise HTTPException(503, f"Workspace {WORKSPACE_NAME!r} missing; run `make db-reset`.")

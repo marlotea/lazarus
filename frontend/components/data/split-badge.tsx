@@ -16,7 +16,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { api, queryKeys, type Split } from "@/lib/api";
+import { api, errorMessage, queryKeys, type Split } from "@/lib/api";
 
 /** `Split A 301 · B 302` with the seed in a tooltip, plus a reshuffle button. */
 export function SplitBadge({
@@ -37,7 +37,7 @@ export function SplitBadge({
       setOpen(false);
       toast.success(`New split: A ${s.n_a} · B ${s.n_b}`);
     },
-    onError: () => toast.error("Could not make a new split"),
+    onError: (err) => toast.error(errorMessage(err, "Could not make a new split")),
   });
 
   if (!split) return <span className="text-xs text-zinc-500">No split</span>;

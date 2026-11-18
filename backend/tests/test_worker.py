@@ -165,3 +165,18 @@ def test_heartbeat_upserts():
         assert n == 1
     finally:
         worker.remove_heartbeat(wid)
+
+
+def test_stop_signal_interrupts_once_then_is_ignored():
+    """A second SIGTERM/SIGINT during shutdown must not interrupt the cleanup."""
+    import signal
+
+    saved = {s: signal.getsignal(s) for s in (signal.SIGINT, signal.SIGTERM)}
+    try:
+        with pytest.raises(KeyboardInterrupt):
+            worker._raise_interrupt(signal.SIGTERM, None)
+        assert signal.getsignal(signal.SIGTERM) == signal.SIG_IGN
+        assert signal.getsignal(signal.SIGINT) == signal.SIG_IGN
+    finally:
+        for s, handler in saved.items():
+            signal.signal(s, handler)

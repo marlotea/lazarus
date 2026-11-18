@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ApiError, api, queryKeys, type Experiment } from "@/lib/api";
+import { ApiError, api, errorMessage, queryKeys, type Experiment } from "@/lib/api";
 
 export const TITLE_MAX = 200;
 
@@ -93,7 +93,12 @@ export function ExperimentDialog({ experiment, trigger }: Props) {
         form.setError(field as keyof FormValues, { message });
       }
       if (Object.keys(errors).length === 0) {
-        toast.error(editing ? "Could not save the experiment" : "Could not create the experiment");
+        toast.error(
+          errorMessage(
+            err,
+            editing ? "Could not save the experiment" : "Could not create the experiment",
+          ),
+        );
       }
     },
   });

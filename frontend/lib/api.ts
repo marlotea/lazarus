@@ -8,12 +8,15 @@ export const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:800
   "",
 );
 
+/** A failed request. `status` 0 means the API could not be reached at all. */
 export class ApiError extends Error {
   constructor(
     public status: number,
     public body: unknown,
   ) {
-    super(`API request failed with status ${status}`);
+    super(
+      status === 0 ? `Cannot reach the API at ${API_URL}` : `API request failed with status ${status}`,
+    );
     this.name = "ApiError";
   }
 }
@@ -23,14 +26,46 @@ export function apiUrl(path: string): string {
 }
 
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(apiUrl(path), {
-    ...init,
-    headers: { "Content-Type": "application/json", ...init?.headers },
-  });
+  let res: Response;
+  try {
+    res = await fetch(apiUrl(path), {
+      ...init,
+      headers: { "Content-Type": "application/json", ...init?.headers },
+    });
+  } catch {
+    // fetch only rejects when no response arrived: API down, wrong URL or CORS.
+    throw new ApiError(0, null);
+  }
   const text = await res.text();
-  const body: unknown = text ? JSON.parse(text) : null;
+  let body: unknown = null;
+  try {
+    body = text ? JSON.parse(text) : null;
+  } catch {
+    body = text; // e.g. a plain-text "Internal Server Error"
+  }
   if (!res.ok) throw new ApiError(res.status, body);
   return body as T;
+}
+
+/** What to tell the user about a failed request: the API's own message when it sent one,
+ *  a hint to start the API when it is unreachable, otherwise `fallback`. */
+export function errorMessage(err: unknown, fallback: string): string {
+  if (!(err instanceof ApiError)) return fallback;
+  if (err.status === 0) {
+    return `Cannot reach the API at ${API_URL}. Is it running? Start it with "make api".`;
+  }
+  const detail = (err.body as { detail?: unknown } | null)?.detail;
+  if (typeof detail === "string" && detail) return detail;
+  if (detail && typeof (detail as { message?: unknown }).message === "string") {
+    return (detail as { message: string }).message;
+  }
+  if (Array.isArray(detail)) {
+    const msgs = detail
+      .map((d) => (d as { msg?: unknown })?.msg)
+      .filter((m): m is string => typeof m === "string" && m !== "");
+    if (msgs.length) return msgs.join(". ");
+  }
+  return `${fallback} (HTTP ${err.status})`;
 }
 
 export type Schemas = components["schemas"];

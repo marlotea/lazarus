@@ -6,6 +6,7 @@ import { AlertTriangle, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { ErrorState } from "@/components/error-state";
 import { SectionHeading } from "@/components/section-heading";
 import { RunsTable } from "@/components/cebra/RunsTable";
 import { useHealth } from "@/components/worker-status";
@@ -92,9 +93,15 @@ export function CebraSection({ experiment }: { experiment: Experiment }) {
             <Skeleton className="h-5 w-2/3" />
           </div>
         ) : runs.isError || schema.isError ? (
-          <p role="alert" className="px-5 py-8 text-center text-red-700">
-            Could not load the runs.
-          </p>
+          <ErrorState
+            title="Could not load the runs"
+            error={runs.error ?? schema.error}
+            onRetry={() => {
+              if (runs.isError) void runs.refetch();
+              if (schema.isError) void schema.refetch();
+            }}
+            retrying={runs.isFetching || schema.isFetching}
+          />
         ) : runs.data.length === 0 ? (
           <p className="px-5 py-8 text-center text-zinc-500">No runs yet.</p>
         ) : (

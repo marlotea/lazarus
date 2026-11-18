@@ -11,6 +11,8 @@ export function useHealth() {
     queryFn: api.health,
     refetchInterval: 5_000,
     retry: false,
+    // An unreachable API is shown as "Worker offline" here, not as a toast.
+    meta: { silent: true },
   });
 }
 

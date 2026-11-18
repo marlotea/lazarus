@@ -32,6 +32,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ErrorState } from "@/components/error-state";
 import {
   GroupByToggle,
   GroupedTree,
@@ -39,8 +40,8 @@ import {
   TreeCheckbox,
 } from "@/components/data/grouped-tree";
 import {
-  ApiError,
   api,
+  errorMessage,
   queryKeys,
   type CatalogItem,
   type CatalogQuery,
@@ -180,16 +181,7 @@ function EditorBody({
       toast.success("Selection saved");
       onDone();
     },
-    onError: (err) => {
-      const detail = err instanceof ApiError ? (err.body as { detail?: unknown })?.detail : null;
-      const message =
-        typeof detail === "string"
-          ? detail
-          : typeof (detail as { message?: unknown })?.message === "string"
-            ? (detail as { message: string }).message
-            : "Could not save the selection";
-      toast.error(message);
-    },
+    onError: (err) => toast.error(errorMessage(err, "Could not save the selection")),
   });
 
   const selectedList = [...selected.values()];
@@ -261,9 +253,13 @@ function EditorBody({
                   ))}
                 </div>
               ) : catalog.isError ? (
-                <p role="alert" className="text-red-700">
-                  Could not load the catalog.
-                </p>
+                <ErrorState
+                  title="Could not load the catalog"
+                  error={catalog.error}
+                  onRetry={() => void catalog.refetch()}
+                  retrying={catalog.isFetching}
+                  className="px-0"
+                />
               ) : rows.length === 0 ? (
                 <p className="py-6 text-center text-zinc-500">No catalog items match the filters.</p>
               ) : (

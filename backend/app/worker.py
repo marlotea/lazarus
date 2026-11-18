@@ -263,6 +263,11 @@ class HeartbeatThread(threading.Thread):
 
 
 def _raise_interrupt(signum: int, frame: object) -> None:
+    """Ctrl-C / SIGTERM: stop once. Later signals are ignored so they cannot cut the cleanup
+    short (`make worker` stopped with a signal to its process group delivers it twice: once
+    directly and once forwarded by `uv run`), which would leave the run or heartbeat behind."""
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
+    signal.signal(signal.SIGTERM, signal.SIG_IGN)
     raise KeyboardInterrupt
 
 
@@ -270,6 +275,7 @@ def main() -> None:
     logging.basicConfig(
         level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s"
     )
+    signal.signal(signal.SIGINT, _raise_interrupt)
     signal.signal(signal.SIGTERM, _raise_interrupt)  # SIGTERM behaves like Ctrl-C
     settings = get_settings()
     worker_id = make_worker_id()

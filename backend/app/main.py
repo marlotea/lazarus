@@ -2,10 +2,11 @@ import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from sqlalchemy import func, select, text
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import OperationalError, SQLAlchemyError
 
 from app.db import SessionLocal
 from app.deps import WORKSPACE_NAME, get_workspace_id, load_workspace_id
@@ -44,6 +45,24 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+DB_UNAVAILABLE = "Cannot reach the database. Is Supabase running? Start it with 'make db'."
+DB_ERROR = "Database error. If the tables are missing, run 'make db-reset'."
+
+
+# Registered handlers run inside the CORS middleware, so the browser can read these errors
+# (an unhandled 500 has no CORS headers and looks like the API is down).
+@app.exception_handler(OperationalError)
+def db_unavailable(request: Request, exc: OperationalError) -> JSONResponse:
+    log.warning("database unavailable: %s", exc)
+    return JSONResponse(status_code=503, content={"detail": DB_UNAVAILABLE})
+
+
+@app.exception_handler(SQLAlchemyError)
+def db_error(request: Request, exc: SQLAlchemyError) -> JSONResponse:
+    log.exception("database error", exc_info=exc)
+    return JSONResponse(status_code=500, content={"detail": DB_ERROR})
+
 
 app.include_router(experiments.router)
 app.include_router(catalog.router)

@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Pencil, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ErrorState } from "@/components/error-state";
 import { SectionHeading } from "@/components/section-heading";
 import {
   GroupByToggle,
@@ -23,7 +24,7 @@ const CARD = "rounded-lg border border-zinc-200 bg-white";
 export function DataSection({ experimentId }: { experimentId: string }) {
   const [by, setBy] = useState<GroupBy>("subject");
   const [editorOpen, setEditorOpen] = useState(false);
-  const { data: items, isPending, isError } = useQuery({
+  const { data: items, isPending, isError, error, refetch, isFetching } = useQuery({
     queryKey: queryKeys.items(experimentId),
     queryFn: () => api.experiments.items(experimentId),
   });
@@ -87,9 +88,12 @@ export function DataSection({ experimentId }: { experimentId: string }) {
             <Skeleton className="h-5 w-1/3" />
           </div>
         ) : isError ? (
-          <p role="alert" className="px-5 py-8 text-center text-red-700">
-            Could not load the selected data.
-          </p>
+          <ErrorState
+            title="Could not load the selected data"
+            error={error}
+            onRetry={() => void refetch()}
+            retrying={isFetching}
+          />
         ) : !hasItems ? (
           <div className="px-5 py-10 text-center">
             <p className="font-medium">No data selected yet</p>

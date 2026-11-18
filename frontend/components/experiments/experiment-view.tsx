@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CebraSection } from "@/components/cebra/CebraSection";
 import { DataSection } from "@/components/data/data-section";
+import { ErrorState } from "@/components/error-state";
 import { ExperimentDialog } from "@/components/experiments/experiment-dialog";
 import { ApiError, api, queryKeys } from "@/lib/api";
 import { experimentMeta } from "@/lib/format";
@@ -43,7 +44,7 @@ export function ExperimentHeaderSkeleton() {
 }
 
 export function ExperimentView({ id }: { id: string }) {
-  const { data: exp, isPending, error } = useQuery({
+  const { data: exp, isPending, error, refetch, isFetching } = useQuery({
     queryKey: queryKeys.experiment(id),
     queryFn: () => api.experiments.get(id),
     retry: (count, err) => !(err instanceof ApiError && err.status < 500) && count < 2,
@@ -56,13 +57,23 @@ export function ExperimentView({ id }: { id: string }) {
     return (
       <div>
         <Breadcrumb title={missing ? "Not found" : "Error"} />
-        <div className={`${CARD} px-5 py-10 text-center`} role="alert">
-          <p className="font-medium">
-            {missing ? "Experiment not found" : "Could not load this experiment"}
-          </p>
-          <Link href="/experiments" className="mt-2 inline-block text-zinc-500 underline">
-            Back to experiments
-          </Link>
+        <div className={CARD}>
+          {missing ? (
+            <div className="px-5 py-10 text-center" role="alert">
+              <p className="font-medium">Experiment not found</p>
+              <p className="mt-1 text-zinc-500">It may have been removed, or the link is wrong.</p>
+              <Link href="/experiments" className="mt-2 inline-block text-zinc-500 underline">
+                Back to experiments
+              </Link>
+            </div>
+          ) : (
+            <ErrorState
+              title="Could not load this experiment"
+              error={error}
+              onRetry={() => void refetch()}
+              retrying={isFetching}
+            />
+          )}
         </div>
       </div>
     );

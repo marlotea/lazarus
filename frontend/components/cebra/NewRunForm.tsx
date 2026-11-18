@@ -21,7 +21,15 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { SchemaField } from "@/components/cebra/SchemaField";
-import { ApiError, api, queryKeys, type CebraSchema, type Experiment } from "@/lib/api";
+import { ErrorState } from "@/components/error-state";
+import {
+  ApiError,
+  api,
+  errorMessage,
+  queryKeys,
+  type CebraSchema,
+  type Experiment,
+} from "@/lib/api";
 import { plural } from "@/lib/format";
 import {
   MODES,
@@ -104,17 +112,29 @@ export function NewRunForm({ id }: { id: string }) {
   useLayoutEffect(() => () => setVisit((v) => v + 1), []);
 
   if (experiment.isError || schema.isError || runs.isError) {
-    const missing = experiment.error instanceof ApiError && experiment.error.status < 500;
+    const missing =
+      experiment.error instanceof ApiError &&
+      (experiment.error.status === 404 || experiment.error.status === 422);
+    const failed = [experiment, schema, runs].filter((q) => q.isError);
     return (
       <div>
         <Breadcrumb experiment={experiment.data} />
-        <div className={`${CARD} px-5 py-10 text-center`} role="alert">
-          <p className="font-medium">
-            {missing ? "Experiment not found" : "Could not load the run form"}
-          </p>
-          <Link href="/experiments" className="mt-2 inline-block text-zinc-500 underline">
-            Back to experiments
-          </Link>
+        <div className={CARD}>
+          {missing ? (
+            <div className="px-5 py-10 text-center" role="alert">
+              <p className="font-medium">Experiment not found</p>
+              <Link href="/experiments" className="mt-2 inline-block text-zinc-500 underline">
+                Back to experiments
+              </Link>
+            </div>
+          ) : (
+            <ErrorState
+              title="Could not load the run form"
+              error={failed[0].error}
+              onRetry={() => failed.forEach((q) => void q.refetch())}
+              retrying={failed.some((q) => q.isFetching)}
+            />
+          )}
         </div>
       </div>
     );
@@ -242,7 +262,7 @@ function NewRunFormBody({
       if (other.length) toast.error(other.join(". "));
       return;
     }
-    toast.error("Could not queue the run");
+    toast.error(errorMessage(err, "Could not queue the run"));
   }
 
   const mutation = useMutation({

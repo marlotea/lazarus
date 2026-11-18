@@ -11,7 +11,7 @@ FRONTEND := $(ROOT)/frontend
 .PHONY: help install db db-stop db-reset api worker web types sync-catalog test test-backend test-frontend lint
 
 help:
-	@echo "make install       install backend (uv) and frontend (pnpm) dependencies"
+	@echo "make install       create missing .env files, install backend (uv) and frontend (pnpm) deps"
 	@echo "make db            start local Supabase (Postgres on 127.0.0.1:54322)"
 	@echo "make db-stop       stop local Supabase"
 	@echo "make db-reset      re-run migrations + seed on the local database"
@@ -20,9 +20,12 @@ help:
 	@echo "make web           Next.js dev server on :3000"
 	@echo "make types         regenerate frontend/lib/api-types.ts (API must be running)"
 	@echo "make sync-catalog  fill the IBL catalog, e.g. ARGS=\"--regions CA1,DG --limit 50\""
-	@echo "make test          backend pytest + frontend vitest"
+	@echo "make test          backend pytest + frontend vitest (needs make db + make db-reset)"
+	@echo "make lint          ruff + eslint"
 
 install:
+	@test -f "$(BACKEND)/.env" || { cp "$(BACKEND)/.env.example" "$(BACKEND)/.env" && echo "created backend/.env from .env.example"; }
+	@test -f "$(FRONTEND)/.env.local" || { cp "$(FRONTEND)/.env.local.example" "$(FRONTEND)/.env.local" && echo "created frontend/.env.local from .env.local.example"; }
 	cd "$(BACKEND)" && uv sync
 	cd "$(FRONTEND)" && pnpm install
 
