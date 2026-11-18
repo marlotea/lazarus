@@ -37,6 +37,9 @@ export type Schemas = components["schemas"];
 export type Health = Schemas["HealthResponse"];
 export type CatalogItem = Schemas["CatalogItem"];
 export type CatalogRegion = Schemas["CatalogRegion"];
+export type Experiment = Schemas["Experiment"];
+export type ExperimentCreate = Schemas["ExperimentCreate"];
+export type ExperimentUpdate = Schemas["ExperimentUpdate"];
 
 export type CatalogQuery = {
   region?: string[];
@@ -63,4 +66,21 @@ export const api = {
   catalogItems: (q: CatalogQuery = {}) =>
     apiFetch<CatalogItem[]>(`/api/catalog/items${toQuery(q)}`),
   catalogRegions: () => apiFetch<CatalogRegion[]>("/api/catalog/regions"),
+  experiments: {
+    list: () => apiFetch<Experiment[]>("/api/experiments"),
+    get: (id: string) => apiFetch<Experiment>(`/api/experiments/${encodeURIComponent(id)}`),
+    create: (body: ExperimentCreate) =>
+      apiFetch<Experiment>("/api/experiments", { method: "POST", body: JSON.stringify(body) }),
+    update: (id: string, body: ExperimentUpdate) =>
+      apiFetch<Experiment>(`/api/experiments/${encodeURIComponent(id)}`, {
+        method: "PATCH",
+        body: JSON.stringify(body),
+      }),
+  },
+};
+
+/** TanStack Query keys, shared so mutations can invalidate the right caches. */
+export const queryKeys = {
+  experiments: ["experiments"] as const,
+  experiment: (id: string) => ["experiments", id] as const,
 };

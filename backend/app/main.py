@@ -10,7 +10,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from app.db import SessionLocal
 from app.deps import WORKSPACE_NAME, get_workspace_id, load_workspace_id
 from app.models import WorkerHeartbeat
-from app.routers import catalog
+from app.routers import catalog, experiments
 from app.schemas.health import HealthResponse
 from app.settings import get_settings
 
@@ -45,6 +45,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(experiments.router)
 app.include_router(catalog.router)
 
 
