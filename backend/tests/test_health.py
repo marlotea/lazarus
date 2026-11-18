@@ -4,7 +4,8 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 
 from app.db import SessionLocal
-from app.main import WORKSPACE_NAME, app
+from app.deps import WORKSPACE_NAME
+from app.main import app
 from app.models import Workspace
 
 

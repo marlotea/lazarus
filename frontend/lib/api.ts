@@ -35,7 +35,32 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
 
 export type Schemas = components["schemas"];
 export type Health = Schemas["HealthResponse"];
+export type CatalogItem = Schemas["CatalogItem"];
+export type CatalogRegion = Schemas["CatalogRegion"];
+
+export type CatalogQuery = {
+  region?: string[];
+  subject?: string;
+  lab?: string;
+  min_units?: number;
+  limit?: number;
+  offset?: number;
+};
+
+/** Build a query string; arrays become repeated keys, empty values are dropped. */
+export function toQuery(params: Record<string, string | number | string[] | undefined>): string {
+  const sp = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined || value === "") continue;
+    for (const v of Array.isArray(value) ? value : [value]) sp.append(key, String(v));
+  }
+  const qs = sp.toString();
+  return qs ? `?${qs}` : "";
+}
 
 export const api = {
   health: () => apiFetch<Health>("/api/health"),
+  catalogItems: (q: CatalogQuery = {}) =>
+    apiFetch<CatalogItem[]>(`/api/catalog/items${toQuery(q)}`),
+  catalogRegions: () => apiFetch<CatalogRegion[]>("/api/catalog/regions"),
 };

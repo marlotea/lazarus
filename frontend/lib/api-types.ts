@@ -4,6 +4,46 @@
  */
 
 export interface paths {
+    "/api/catalog/items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Catalog Items
+         * @description Flat catalog rows (session x region), ordered by subject, date, session and region.
+         */
+        get: operations["list_catalog_items_api_catalog_items_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/catalog/regions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Catalog Regions
+         * @description Distinct regions with the number of sessions that have each one, sorted by region.
+         */
+        get: operations["list_catalog_regions_api_catalog_regions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/health": {
         parameters: {
             query?: never;
@@ -28,6 +68,42 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * CatalogItem
+         * @description One catalog row: one Beryl region in one IBL session.
+         */
+        CatalogItem: {
+            /**
+             * Eid
+             * Format: uuid
+             */
+            eid: string;
+            /** Region */
+            region: string;
+            /** Subject */
+            subject: string;
+            /** Lab */
+            lab: string;
+            /**
+             * Session Date
+             * Format: date
+             */
+            session_date: string;
+            /** N Good Units */
+            n_good_units: number;
+        };
+        /** CatalogRegion */
+        CatalogRegion: {
+            /** Region */
+            region: string;
+            /** N Sessions */
+            n_sessions: number;
+        };
+        /** HTTPValidationError */
+        HTTPValidationError: {
+            /** Detail */
+            detail?: components["schemas"]["ValidationError"][];
+        };
         /** HealthResponse */
         HealthResponse: {
             /** Ok */
@@ -36,6 +112,19 @@ export interface components {
             db: boolean;
             /** Worker Last Seen */
             worker_last_seen: string | null;
+        };
+        /** ValidationError */
+        ValidationError: {
+            /** Location */
+            loc: (string | number)[];
+            /** Message */
+            msg: string;
+            /** Error Type */
+            type: string;
+            /** Input */
+            input?: unknown;
+            /** Context */
+            ctx?: Record<string, never>;
         };
     };
     responses: never;
@@ -46,6 +135,66 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    list_catalog_items_api_catalog_items_get: {
+        parameters: {
+            query?: {
+                /** @description Beryl acronym(s); repeat or comma-separate */
+                region?: string[] | null;
+                /** @description Case-insensitive substring of the subject */
+                subject?: string | null;
+                /** @description Exact lab name */
+                lab?: string | null;
+                /** @description Minimum good units */
+                min_units?: number;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogItem"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_catalog_regions_api_catalog_regions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogRegion"][];
+                };
+            };
+        };
+    };
     health_api_health_get: {
         parameters: {
             query?: never;
