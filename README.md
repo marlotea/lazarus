@@ -52,7 +52,7 @@ make web      # Next.js on http://localhost:3000
 | `make db-reset` | Drop and re-create the local database from `supabase/migrations` + `seed.sql` |
 | `make types` | Regenerate `frontend/lib/api-types.ts` from the running API's OpenAPI schema |
 | `make sync-catalog ARGS="--regions CA1,DG --limit 50"` | Fill the IBL catalog tables |
-| `make test` | Backend `pytest` + frontend `vitest run` |
+| `make test` | Backend `pytest` + frontend `vitest run` (backend tests need the local database: `make db` and `make db-reset`) |
 | `make lint` | `ruff` + `eslint` |
 
 ## Environment variables
