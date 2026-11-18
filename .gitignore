@@ -1,7 +1,27 @@
-.venv/
-data/
+# Python
 __pycache__/
 *.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# Node
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# Env files (keep examples)
+.env
+.env.*
+!.env.example
+!.env.local.example
+
+# Data
+data/
+results/
+
+# OS / tools
 .DS_Store
 .claude/
-results/
